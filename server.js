@@ -102,6 +102,7 @@ app.post("/api/rooms", authenticateToken, async (req, res) => {
 });
 
 // Join Room
+// Join Room and log it to room_expenses
 app.post("/api/join-room", authenticateToken, async (req, res) => {
   const { room_id } = req.body;
   const username = req.user.username;
@@ -115,12 +116,21 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
       "INSERT INTO participants (room_id, username) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [room_id, username]
     );
+
+    // 👇 Log the room join event into room_expenses
+    await pool.query(
+      `INSERT INTO room_expenses (room_id, username, description, amount, people, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())`,
+      [room_id, username, 'joined the room', 0, 1]
+    );
+
     res.json({ success: true, message: "Joined room successfully" });
   } catch (err) {
     console.error("Join Room Error:", err.message);
     res.status(500).json({ success: false, message: "Failed to join room" });
   }
 });
+
 
 // Add Expense to Room
 app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
