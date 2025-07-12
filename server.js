@@ -188,20 +188,53 @@ app.post("/api/expense", authenticateToken, async (req, res) => {
   }
 });
 
-// Personal History
+// // Personal History
+// app.get("/api/history", authenticateToken, async (req, res) => {
+//   const username = req.user.username;
+//   try {
+//     const result = await pool.query(
+//       "SELECT * FROM expenses WHERE username = $1 ORDER BY created_at DESC",
+//       [username]
+//     );
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error("Fetch Personal History Error:", err.message);
+//     res.status(500).json({ success: false });
+//   }
+// });
+
+// Personal Room-wise History
 app.get("/api/history", authenticateToken, async (req, res) => {
   const username = req.user.username;
+
   try {
     const result = await pool.query(
-      "SELECT * FROM expenses WHERE username = $1 ORDER BY created_at DESC",
+      `
+      SELECT 
+        re.room_id,
+        r.name AS room_name,
+        SUM(re.amount) AS total_spent
+      FROM 
+        room_expenses re
+      JOIN 
+        rooms r ON r.id = re.room_id
+      WHERE 
+        re.username = $1
+      GROUP BY 
+        re.room_id, r.name
+      ORDER BY 
+        MAX(re.created_at) DESC
+      `,
       [username]
     );
+
     res.json(result.rows);
   } catch (err) {
     console.error("Fetch Personal History Error:", err.message);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 // Root
 app.get("/", (req, res) => res.send("Server is running"));
