@@ -282,7 +282,7 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT username FROM participants WHERE room_id = $1`,
+      `SELECT DISTINCT username FROM participants WHERE room_id = $1`,
       [roomId]
     );
 
