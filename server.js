@@ -135,29 +135,48 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
 // Add Expense to Room
 app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
-  const { desc, amount} = req.body;
+  const { desc, amount } = req.body;
   const username = req.user.username;
 
-  if (!desc || !amount )
+  if (!desc || !amount)
     return res.status(400).json({ message: "All fields are required" });
 
   try {
+    // ✅ Get room's creator
+    const roomResult = await pool.query(
+      "SELECT created_by FROM rooms WHERE id = $1",
+      [roomId]
+    );
+
+    if (roomResult.rowCount === 0) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const roomCreator = roomResult.rows[0].created_by;
+
+    // ✅ Only creator can add expense
+    if (username !== roomCreator) {
+      return res.status(403).json({ message: "Only room creator can add expenses" });
+    }
+
     const countRes = await pool.query(
       "SELECT COUNT(*) FROM participants WHERE room_id = $1",
       [roomId]
     );
     const people = parseInt(countRes.rows[0].count);
-    
+
     await pool.query(
       "INSERT INTO room_expenses (room_id, username, description, amount, people, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
       [roomId, username, desc, amount, people]
     );
+
     res.json({ success: true, message: "Room expense added" });
   } catch (err) {
     console.error("Add Room Expense Error:", err.message);
     res.status(500).json({ success: false, message: "Failed to add room expense" });
   }
 });
+
 
 // Get Room Expense History
 app.get("/api/history", authenticateToken, async (req, res) => {
