@@ -135,13 +135,19 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
 // Add Expense to Room
 app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
-  const { desc, amount, people } = req.body;
+  const { desc, amount} = req.body;
   const username = req.user.username;
 
-  if (!desc || !amount || !people)
+  if (!desc || !amount )
     return res.status(400).json({ message: "All fields are required" });
 
   try {
+    const countRes = await pool.query(
+      "SELECT COUNT(*) FROM participants WHERE room_id = $1",
+      [roomId]
+    );
+    const people = parseInt(countRes.rows[0].count);
+    
     await pool.query(
       "INSERT INTO room_expenses (room_id, username, description, amount, people, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
       [roomId, username, desc, amount, people]
@@ -154,17 +160,37 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
 });
 
 // Get Room Expense History
-app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
-  const { roomId } = req.params;
+app.get("/api/history", authenticateToken, async (req, res) => {
+  const username = req.user.username;
+
   try {
     const result = await pool.query(
-      "SELECT * FROM room_expenses WHERE room_id = $1 ORDER BY created_at DESC",
-      [roomId]
+      `
+      SELECT 
+        re.room_id,
+        r.name AS room_name,
+        SUM(re.amount) AS total_spent,
+        COUNT(DISTINCT p.username) AS participant_count
+      FROM 
+        room_expenses re
+      JOIN 
+        rooms r ON r.id = re.room_id
+      JOIN 
+        participants p ON p.room_id = re.room_id
+      WHERE 
+        re.username = $1
+      GROUP BY 
+        re.room_id, r.name
+      ORDER BY 
+        MAX(re.created_at) DESC
+      `,
+      [username]
     );
+
     res.json(result.rows);
   } catch (err) {
-    console.error("Fetch Room History Error:", err.message);
-    res.status(500).json({ success: false, message: "Failed to fetch room history" });
+    console.error("Fetch Personal History Error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -188,6 +214,23 @@ app.post("/api/expense", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) => {
+  const { roomId } = req.params;
+
+  try {
+    const result = await pool.query(
+      "SELECT username FROM participants WHERE room_id = $1",
+      [roomId]
+    );
+
+    res.json({ success: true, users: result.rows.map(r => r.username) });
+  } catch (err) {
+    console.error("Fetch Participants Error:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+
 // // Personal History
 // app.get("/api/history", authenticateToken, async (req, res) => {
 //   const username = req.user.username;
@@ -203,37 +246,37 @@ app.post("/api/expense", authenticateToken, async (req, res) => {
 //   }
 // });
 
-// Personal Room-wise History
-app.get("/api/history", authenticateToken, async (req, res) => {
-  const username = req.user.username;
+// // Personal Room-wise History
+// app.get("/api/history", authenticateToken, async (req, res) => {
+//   const username = req.user.username;
 
-  try {
-    const result = await pool.query(
-      `
-      SELECT 
-        re.room_id,
-        r.name AS room_name,
-        SUM(re.amount) AS total_spent
-      FROM 
-        room_expenses re
-      JOIN 
-        rooms r ON r.id = re.room_id
-      WHERE 
-        re.username = $1
-      GROUP BY 
-        re.room_id, r.name
-      ORDER BY 
-        MAX(re.created_at) DESC
-      `,
-      [username]
-    );
+//   try {
+//     const result = await pool.query(
+//       `
+//       SELECT 
+//         re.room_id,
+//         r.name AS room_name,
+//         SUM(re.amount) AS total_spent
+//       FROM 
+//         room_expenses re
+//       JOIN 
+//         rooms r ON r.id = re.room_id
+//       WHERE 
+//         re.username = $1
+//       GROUP BY 
+//         re.room_id, r.name
+//       ORDER BY 
+//         MAX(re.created_at) DESC
+//       `,
+//       [username]
+//     );
 
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Fetch Personal History Error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
+//     res.json(result.rows);
+//   } catch (err) {
+//     console.error("Fetch Personal History Error:", err.message);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// });
 
 
 // Root
