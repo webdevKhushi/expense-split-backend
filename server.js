@@ -277,7 +277,25 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
 //     res.status(500).json({ success: false, message: "Server error" });
 //   }
 // });
+app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
+  const { roomId } = req.params;
 
+  try {
+    const result = await pool.query(
+      `SELECT username FROM participants WHERE room_id = $1`,
+      [roomId]
+    );
+
+    const participants = result.rows.map((row) => ({
+      name: row.username,
+    }));
+
+    res.json({ success: true, participants });
+  } catch (err) {
+    console.error("Fetch Room Details Error:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch room details" });
+  }
+});
 
 // Root
 app.get("/", (req, res) => res.send("Server is running"));
