@@ -225,21 +225,28 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
   }
 });
 
-// Get Room Details
+// ✅ Get Room Details (with creator)
 app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
 
   try {
-    const result = await pool.query(
+    const participantsRes = await pool.query(
       "SELECT DISTINCT username FROM participants WHERE room_id = $1",
       [roomId]
     );
 
-    const participants = result.rows.map((row) => ({
+    const creatorRes = await pool.query(
+      "SELECT created_by FROM rooms WHERE id = $1",
+      [roomId]
+    );
+
+    const participants = participantsRes.rows.map((row) => ({
       name: row.username,
     }));
 
-    res.json({ success: true, participants });
+    const created_by = creatorRes.rows[0]?.created_by || "";
+
+    res.json({ success: true, participants, created_by });
   } catch (err) {
     console.error("Fetch Room Details Error:", err.message);
     res.status(500).json({ success: false, message: "Failed to fetch room details" });
