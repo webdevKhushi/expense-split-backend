@@ -132,7 +132,6 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
 });
 
 
-// Add Expense to Room
 app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
   const { desc, amount } = req.body;
@@ -142,7 +141,6 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
 
   try {
-    // ✅ Get room's creator
     const roomResult = await pool.query(
       "SELECT created_by FROM rooms WHERE id = $1",
       [roomId]
@@ -154,9 +152,11 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
 
     const roomCreator = roomResult.rows[0].created_by;
 
-    // ✅ Only creator can add expense
-    if (username !== roomCreator) {
-      return res.status(403).json({ message: "Only room creator can add expenses" });
+    // ✅ Normalize both before comparing
+    if (username.trim().toLowerCase() !== roomCreator.trim().toLowerCase()) {
+      return res
+        .status(403)
+        .json({ message: "Only room creator can add expenses" });
     }
 
     const countRes = await pool.query(
@@ -173,7 +173,9 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
     res.json({ success: true, message: "Room expense added" });
   } catch (err) {
     console.error("Add Room Expense Error:", err.message);
-    res.status(500).json({ success: false, message: "Failed to add room expense" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to add room expense" });
   }
 });
 
