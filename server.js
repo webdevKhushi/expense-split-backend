@@ -8,27 +8,26 @@ import jwt from "jsonwebtoken";
 
 const { Pool } = pkg;
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ Allow CORS from Vercel frontend
+// ✅ Updated CORS Configuration
 app.use(cors({
   origin: [
-    "https://expensesplit-frontend-working-git-main-webdevkhushis-projects.vercel.app", // Vercel
-    "http://localhost:5173", // Local dev (optional)
+    "https://expensesplit-frontend-git-main-webdevkhushis-projects.vercel.app",
+    "http://localhost:5173"
   ],
   credentials: true,
 }));
 
 app.use(express.json());
 
-// ✅ PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://postgres:1234@localhost:5433/expensesplit",
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// ✅ Auth middleware
+// Middleware to authenticate JWT token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ")[1];
@@ -40,8 +39,6 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
-
-// ✅ Routes
 
 // Signup
 app.post("/api/signup", async (req, res) => {
@@ -97,7 +94,7 @@ app.post("/api/rooms", authenticateToken, async (req, res) => {
   }
 });
 
-// Join Room
+// ✅ Join Room
 app.post("/api/join-room", authenticateToken, async (req, res) => {
   const { room_id } = req.body;
   const username = req.user.username;
@@ -135,23 +132,15 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
     return res.status(400).json({ message: "All fields are required" });
 
   try {
-    const roomResult = await pool.query(
-      "SELECT created_by FROM rooms WHERE id = $1",
-      [roomId]
-    );
-
+    const roomResult = await pool.query("SELECT created_by FROM rooms WHERE id = $1", [roomId]);
     if (roomResult.rowCount === 0)
       return res.status(404).json({ message: "Room not found" });
 
     const roomCreator = roomResult.rows[0].created_by;
-
     if (username.trim().toLowerCase() !== roomCreator.trim().toLowerCase())
       return res.status(403).json({ message: "Only room creator can add expenses" });
 
-    const countRes = await pool.query(
-      "SELECT COUNT(*) FROM participants WHERE room_id = $1",
-      [roomId]
-    );
+    const countRes = await pool.query("SELECT COUNT(*) FROM participants WHERE room_id = $1", [roomId]);
     const people = parseInt(countRes.rows[0].count);
 
     await pool.query(
@@ -166,48 +155,29 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   }
 });
 
-// Room Participants
-app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) => {
-  const { roomId } = req.params;
-
-  try {
-    const result = await pool.query(
-      "SELECT username FROM participants WHERE room_id = $1",
-      [roomId]
-    );
-
-    res.json({ success: true, users: result.rows.map(r => r.username) });
-  } catch (err) {
-    console.error("Fetch Participants Error:", err.message);
-    res.status(500).json({ success: false });
-  }
-});
-
-// Room History (for the user)
+// Get Room Expense History
 app.get("/api/history", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
   try {
     const result = await pool.query(
-      `
-      SELECT 
+      `SELECT 
         re.room_id,
         r.name AS room_name,
         SUM(re.amount) AS total_spent,
         COUNT(DISTINCT p.username) AS participant_count
-      FROM 
+       FROM 
         room_expenses re
-      JOIN 
+       JOIN 
         rooms r ON r.id = re.room_id
-      JOIN 
+       JOIN 
         participants p ON p.room_id = re.room_id
-      WHERE 
+       WHERE 
         re.username = $1
-      GROUP BY 
+       GROUP BY 
         re.room_id, r.name
-      ORDER BY 
-        MAX(re.created_at) DESC
-      `,
+       ORDER BY 
+        MAX(re.created_at) DESC`,
       [username]
     );
 
@@ -218,7 +188,7 @@ app.get("/api/history", authenticateToken, async (req, res) => {
   }
 });
 
-// Personal Expense
+// Add Personal Expense
 app.post("/api/expense", authenticateToken, async (req, res) => {
   const { desc, amount, people } = req.body;
   const username = req.user.username;
@@ -238,7 +208,23 @@ app.post("/api/expense", authenticateToken, async (req, res) => {
   }
 });
 
-// Room Details
+// Get Room Participants
+app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) => {
+  const { roomId } = req.params;
+
+  try {
+    const result = await pool.query(
+      "SELECT username FROM participants WHERE room_id = $1",
+      [roomId]
+    );
+    res.json({ success: true, users: result.rows.map(r => r.username) });
+  } catch (err) {
+    console.error("Fetch Participants Error:", err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
+// Get Room Details
 app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
 
@@ -256,9 +242,8 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
   }
 });
 
-// Root route
+// Root
 app.get("/", (req, res) => res.send("Server is running"));
-
 app.listen(PORT, () => {
   console.log(`Backend running at http://localhost:${PORT}`);
 });
