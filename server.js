@@ -11,7 +11,7 @@ const app = express();
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ Updated CORS Configuration
+// ✅ CORS Fix (Add your frontend origin)
 app.use(cors({
   origin: [
     "https://expensesplit-frontend-git-main-webdevkhushis-projects.vercel.app",
@@ -22,19 +22,25 @@ app.use(cors({
 
 app.use(express.json());
 
+// PostgreSQL Connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://postgres:1234@localhost:5433/expensesplit",
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// Middleware to authenticate JWT token
+// Auth Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "Token missing" });
+
+  if (!token) {
+    return res.status(401).json({ message: "Token missing" });
+  }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: "Token invalid" });
+    if (err) {
+      return res.status(403).json({ message: "Token invalid" });
+    }
     req.user = user;
     next();
   });
@@ -94,7 +100,7 @@ app.post("/api/rooms", authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Join Room
+// Join Room and log it to room_expenses
 app.post("/api/join-room", authenticateToken, async (req, res) => {
   const { room_id } = req.body;
   const username = req.user.username;
@@ -155,7 +161,7 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   }
 });
 
-// Get Room Expense History
+// Room Expense History
 app.get("/api/history", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
@@ -188,7 +194,7 @@ app.get("/api/history", authenticateToken, async (req, res) => {
   }
 });
 
-// Add Personal Expense
+// Personal Expense
 app.post("/api/expense", authenticateToken, async (req, res) => {
   const { desc, amount, people } = req.body;
   const username = req.user.username;
@@ -217,6 +223,7 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
       "SELECT username FROM participants WHERE room_id = $1",
       [roomId]
     );
+
     res.json({ success: true, users: result.rows.map(r => r.username) });
   } catch (err) {
     console.error("Fetch Participants Error:", err.message);
@@ -234,7 +241,10 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
       [roomId]
     );
 
-    const participants = result.rows.map((row) => ({ name: row.username }));
+    const participants = result.rows.map((row) => ({
+      name: row.username,
+    }));
+
     res.json({ success: true, participants });
   } catch (err) {
     console.error("Fetch Room Details Error:", err.message);
@@ -244,6 +254,7 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
 
 // Root
 app.get("/", (req, res) => res.send("Server is running"));
+
 app.listen(PORT, () => {
   console.log(`Backend running at http://localhost:${PORT}`);
 });
