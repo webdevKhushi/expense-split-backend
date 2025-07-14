@@ -258,8 +258,13 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
   const username = req.user.username;
 
+  // ✅ Validate roomId early
+  if (!roomId || isNaN(roomId)) {
+    return res.status(400).json({ success: false, message: "Invalid room ID" });
+  }
+
   try {
-    // Verify the user is part of the room
+    // ✅ Verify the user is part of the room
     const isParticipant = await pool.query(
       "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
       [roomId, username]
@@ -269,6 +274,7 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
       return res.status(403).json({ message: "You are not a member of this room" });
     }
 
+    // ✅ Fetch all expenses for the room
     const result = await pool.query(
       `SELECT 
         username, description, amount, people, created_at 
@@ -284,6 +290,7 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch room history" });
   }
 });
+
 
 
 // Root
