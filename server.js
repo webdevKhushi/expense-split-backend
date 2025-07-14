@@ -155,39 +155,6 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
   }
 });
 
-// Room Expense History
-app.get("/api/history", authenticateToken, async (req, res) => {
-  const username = req.user.username;
-
-  try {
-    const result = await pool.query(
-      `SELECT 
-        re.room_id,
-        r.name AS room_name,
-        SUM(re.amount) AS total_spent,
-        COUNT(DISTINCT p.username) AS participant_count
-       FROM 
-        room_expenses re
-       JOIN 
-        rooms r ON r.id = re.room_id
-       JOIN 
-        participants p ON p.room_id = re.room_id
-       WHERE 
-        re.username = $1
-       GROUP BY 
-        re.room_id, r.name
-       ORDER BY 
-        MAX(re.created_at) DESC`,
-      [username]
-    );
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Fetch Personal History Error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
 // Personal Expense
 app.post("/api/expense", authenticateToken, async (req, res) => {
   const { desc, amount, people } = req.body;
@@ -291,6 +258,22 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
   }
 });
 
+// 🔧 Personal expense fetch
+app.get("/api/expense/personal", authenticateToken, async (req, res) => {
+  const username = req.user.username;
+
+  try {
+    const result = await pool.query(
+      "SELECT description, amount, people, created_at FROM expenses WHERE username = $1 ORDER BY created_at DESC",
+      [username]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Fetch Personal Expense Error:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch personal expenses" });
+  }
+});
 
 
 // Root
