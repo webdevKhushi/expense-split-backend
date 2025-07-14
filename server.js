@@ -13,11 +13,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // ✅ CORS Fix (Add your frontend origin)
 app.use(cors({
-  origin: [
-    "https://expensesplit-frontend-git-main-webdevkhushis-projects.vercel.app",
-    "http://localhost:5173"
-  ],
-  credentials: true,
+  origin: "https://expensesplit-frontend-git-main-webdevkhushis-projects.vercel.app",
+  credentials: true
 }));
 
 app.use(express.json());
