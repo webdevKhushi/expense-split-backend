@@ -12,12 +12,9 @@ const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // ✅ CORS Fix (Add your frontend origin)
-app.use(cors({
-  origin: "https://expensesplit-frontend-git-main-webdevkhushis-projects.vercel.app",
-  credentials: true
-}));
+app.use(cors());
+app.use(express.json()); // replaced bodyParser
 
-app.use(express.json());
 
 // PostgreSQL Connection
 const pool = new Pool({
