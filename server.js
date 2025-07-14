@@ -253,6 +253,39 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
   }
 });
 
+// Shared Room History: Viewable by all participants
+app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
+  const { roomId } = req.params;
+  const username = req.user.username;
+
+  try {
+    // Verify the user is part of the room
+    const isParticipant = await pool.query(
+      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
+      [roomId, username]
+    );
+
+    if (isParticipant.rowCount === 0) {
+      return res.status(403).json({ message: "You are not a member of this room" });
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        username, description, amount, people, created_at 
+       FROM room_expenses 
+       WHERE room_id = $1
+       ORDER BY created_at DESC`,
+      [roomId]
+    );
+
+    res.json({ success: true, expenses: result.rows });
+  } catch (err) {
+    console.error("Room Expense History Error:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch room history" });
+  }
+});
+
+
 // Root
 app.get("/", (req, res) => res.send("Server is running"));
 
