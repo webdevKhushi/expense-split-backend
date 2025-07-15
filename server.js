@@ -50,10 +50,12 @@ function authenticateToken(req, res, next) {
 }
 
 // Signup
+// Signup
 app.post("/api/signup", async (req, res) => {
   const { username, password, email } = req.body;
-  if (!username || !password || !email)
-    return res.status(400).json({ success: false, message: "Username, email and password required" });
+  if (!username || !password || !email) {
+    return res.status(400).json({ success: false, message: "Username, email, and password required" });
+  }
 
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -65,7 +67,8 @@ app.post("/api/signup", async (req, res) => {
 
     const emailToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: "15m" });
 
-    const verificationLink = `http://localhost:${PORT}/api/verify-email?token=${emailToken}`;
+    // ✅ LIVE SERVER URL
+    const verificationLink = `https://expense-split-backend-1.onrender.com/api/verify-email?token=${emailToken}`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -78,10 +81,11 @@ app.post("/api/signup", async (req, res) => {
 
     res.json({ success: true, message: "Signup successful. Check your email for verification." });
   } catch (err) {
-    console.error("Signup Error:", err.message);
-    res.status(500).json({ success: false, message: "Signup failed" });
+    console.error("Signup Error:", err);  // 🔍 Full error for debugging
+    res.status(500).json({ success: false, message: "Signup failed", error: err.message });
   }
 });
+
 
 app.get("/api/verify-email", async (req, res) => {
   const { token } = req.query;
