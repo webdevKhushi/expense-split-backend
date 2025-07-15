@@ -99,23 +99,25 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
   try {
+    // 🔍 Check if the room exists
     const exists = await pool.query("SELECT * FROM rooms WHERE id = $1", [room_id]);
     if (exists.rowCount === 0)
       return res.status(404).json({ success: false, message: "Room not found" });
 
     // ✅ Check if already a participant
     const alreadyJoined = await pool.query(
-      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
+      "SELECT 1 FROM room_participants WHERE room_id = $1 AND username = $2",
       [room_id, username]
     );
 
     if (alreadyJoined.rowCount === 0) {
-      // Only insert if not already joined
+      // 👥 Insert into room_participants table
       await pool.query(
-        "INSERT INTO participants (room_id, username) VALUES ($1, $2)",
+        "INSERT INTO room_participants (room_id, username) VALUES ($1, $2)",
         [room_id, username]
       );
 
+      // ✏️ Add zero-amount expense to log the join
       await pool.query(
         `INSERT INTO room_expenses (room_id, username, description, amount, people, created_at)
          VALUES ($1, $2, $3, $4, $5, NOW())`,
@@ -129,6 +131,7 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to join room" });
   }
 });
+
 
 
 // Add Room Expense
@@ -267,12 +270,12 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔧 Personal expense fetch
+// 🔧 Fetch personal expense history from all rooms the user participated in
 app.get("/api/expense/personal", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
   try {
-    // Step 1: Get room IDs where user is a participant
+    // Step 1: Get all room IDs where user is a participant
     const roomIdsResult = await pool.query(
       `SELECT room_id FROM room_participants WHERE username = $1`,
       [username]
@@ -280,12 +283,19 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
     const roomIds = roomIdsResult.rows.map(row => row.room_id);
 
     if (roomIds.length === 0) {
-      return res.json([]); // No rooms participated
+      // User hasn't joined any rooms
+      return res.json([]);
     }
 
-    // Step 2: Get expenses from those room IDs
+    // Step 2: Fetch all expenses from those rooms
     const result = await pool.query(
-      `SELECT e.description, e.amount, e.people, e.created_at, r.name AS room_name, e.username
+      `SELECT 
+         e.description, 
+         e.amount, 
+         e.people, 
+         e.created_at, 
+         r.name AS room_name, 
+         e.username
        FROM room_expenses e
        LEFT JOIN rooms r ON e.room_id = r.id
        WHERE e.room_id = ANY($1)
@@ -296,7 +306,10 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error("Fetch Personal Expense Error:", err.message);
-    res.status(500).json({ success: false, message: "Failed to fetch personal expenses" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch personal expenses"
+    });
   }
 });
 
