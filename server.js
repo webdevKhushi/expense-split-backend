@@ -272,13 +272,25 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
   try {
+    // Step 1: Get room IDs where user is a participant
+    const roomIdsResult = await pool.query(
+      `SELECT room_id FROM room_participants WHERE username = $1`,
+      [username]
+    );
+    const roomIds = roomIdsResult.rows.map(row => row.room_id);
+
+    if (roomIds.length === 0) {
+      return res.json([]); // No rooms participated
+    }
+
+    // Step 2: Get expenses from those room IDs
     const result = await pool.query(
-      `SELECT e.description, e.amount, e.people, e.created_at, r.name AS room_name
+      `SELECT e.description, e.amount, e.people, e.created_at, r.name AS room_name, e.username
        FROM room_expenses e
        LEFT JOIN rooms r ON e.room_id = r.id
-       WHERE e.username = $1
+       WHERE e.room_id = ANY($1)
        ORDER BY e.created_at DESC`,
-      [username]
+      [roomIds]
     );
 
     res.json(result.rows);
@@ -287,6 +299,7 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch personal expenses" });
   }
 });
+
 
 
 // Root
