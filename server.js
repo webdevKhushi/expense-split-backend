@@ -35,26 +35,26 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// ✅ Signup (no email verification)
+// ✅ Signup (no email or verification)
 app.post("/api/signup", async (req, res) => {
-  const { username, password, email } = req.body;
-  if (!username || !password || !email)
-    return res.status(400).json({ success: false, message: "All fields required" });
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Username and password required" });
+  }
 
   try {
+    // Check if username already exists
     const existingUser = await pool.query("SELECT 1 FROM users WHERE username = $1", [username]);
-    if (existingUser.rowCount > 0)
+    if (existingUser.rowCount > 0) {
       return res.status(409).json({ success: false, message: "Username already taken" });
+    }
 
-    const existingEmail = await pool.query("SELECT 1 FROM users WHERE email = $1", [email]);
-    if (existingEmail.rowCount > 0)
-      return res.status(409).json({ success: false, message: "Email already registered" });
-
+    // Hash the password and insert user
     const hash = await bcrypt.hash(password, 10);
-
     await pool.query(
-      "INSERT INTO users (username, password, email, is_verified) VALUES ($1, $2, $3, true)",
-      [username, hash, email]
+      "INSERT INTO users (username, password) VALUES ($1, $2)",
+      [username, hash]
     );
 
     res.json({ success: true, message: "Signup successful. You can now log in." });
@@ -63,6 +63,7 @@ app.post("/api/signup", async (req, res) => {
     res.status(500).json({ success: false, message: "Signup failed" });
   }
 });
+
 
 // ✅ Login
 app.post("/api/login", async (req, res) => {
