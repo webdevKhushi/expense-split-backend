@@ -5,153 +5,92 @@ import cors from "cors";
 import pkg from "pg";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
 
 const { Pool } = pkg;
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ CORS Fix (Add your frontend origin)
+// ✅ Middleware
 app.use(cors());
-app.use(express.json()); // replaced bodyParser
+app.use(express.json());
 
-
-// PostgreSQL Connection
+// ✅ PostgreSQL Connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://postgres:1234@localhost:5433/expensesplit",
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// Auth Middleware
+// ✅ Auth Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ")[1];
 
-  if (!token) {
-    return res.status(401).json({ message: "Token missing" });
-  }
+  if (!token) return res.status(401).json({ message: "Token missing" });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: "Token invalid" });
-    }
+    if (err) return res.status(403).json({ message: "Token invalid" });
     req.user = user;
     next();
   });
 }
 
-// Signup
+// ✅ Signup (no email verification)
 app.post("/api/signup", async (req, res) => {
   const { username, password, email } = req.body;
-  if (!username || !password || !email) {
-    return res.status(400).json({ success: false, message: "Username, email, and password required" });
-  }
+  if (!username || !password || !email)
+    return res.status(400).json({ success: false, message: "All fields required" });
 
   try {
-    // ✅ Check if username already exists
     const existingUser = await pool.query("SELECT 1 FROM users WHERE username = $1", [username]);
-    if (existingUser.rowCount > 0) {
+    if (existingUser.rowCount > 0)
       return res.status(409).json({ success: false, message: "Username already taken" });
-    }
 
-    // ✅ Check if email already exists
     const existingEmail = await pool.query("SELECT 1 FROM users WHERE email = $1", [email]);
-    if (existingEmail.rowCount > 0) {
+    if (existingEmail.rowCount > 0)
       return res.status(409).json({ success: false, message: "Email already registered" });
-    }
 
     const hash = await bcrypt.hash(password, 10);
 
     await pool.query(
-      "INSERT INTO users (username, password, email, is_verified) VALUES ($1, $2, $3, false)",
+      "INSERT INTO users (username, password, email, is_verified) VALUES ($1, $2, $3, true)",
       [username, hash, email]
     );
 
-    const emailToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: "15m" });
-    const verificationLink = `https://expense-split-backend-1.onrender.com/api/verify-email?token=${emailToken}`;
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Verify your email",
-      html: `<h3>Hi ${username},</h3>
-             <p>Please verify your email by clicking the link below:</p>
-             <a href="${verificationLink}">${verificationLink}</a>`
-    });
-
-    res.json({ success: true, message: "Signup successful. Check your email for verification." });
+    res.json({ success: true, message: "Signup successful. You can now log in." });
   } catch (err) {
-    console.error("Signup Error:", err);
-    res.status(500).json({ success: false, message: "Signup failed", error: err.message });
+    console.error("Signup Error:", err.message);
+    res.status(500).json({ success: false, message: "Signup failed" });
   }
 });
 
-
-
-app.get("/api/verify-email", async (req, res) => {
-  const { token } = req.query;
-
-  if (!token) return res.status(400).send("Verification token missing");
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const email = decoded.email;
-
-    const result = await pool.query("UPDATE users SET is_verified = true WHERE email = $1", [email]);
-
-    if (result.rowCount === 0)
-      return res.status(400).send("Invalid or expired token");
-
-    res.send("✅ Email verified successfully! You can now log in.");
-  } catch (err) {
-    console.error("Email Verification Error:", err.message);
-    res.status(400).send("Invalid or expired token");
-  }
-});
-
-
-// Login
+// ✅ Login
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
-  if (!username || !password) {
+  if (!username || !password)
     return res.status(400).json({ success: false, message: "Username and password are required" });
-  }
 
   try {
     const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
-
-    if (result.rowCount === 0) {
+    if (result.rowCount === 0)
       return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
 
     const user = result.rows[0];
-
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
+    if (!passwordMatch)
       return res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
-
-    if (!user.is_verified) {
-      return res.status(403).json({ success: false, message: "Please verify your email before logging in" });
-    }
 
     const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: "1h" });
-
     res.json({ success: true, username: user.username, token });
   } catch (err) {
     console.error("Login Error:", err.message);
     res.status(500).json({ success: false, message: "Login failed due to server error" });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Backend running at http://localhost:${PORT}`);
 });
 
 
