@@ -94,7 +94,6 @@ app.post("/api/rooms", authenticateToken, async (req, res) => {
   }
 });
 
-// Join Room and log it to room_expenses
 app.post("/api/join-room", authenticateToken, async (req, res) => {
   const { room_id } = req.body;
   const username = req.user.username;
@@ -104,16 +103,25 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
     if (exists.rowCount === 0)
       return res.status(404).json({ success: false, message: "Room not found" });
 
-    await pool.query(
-      "INSERT INTO participants (room_id, username) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    // ✅ Check if already a participant
+    const alreadyJoined = await pool.query(
+      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
       [room_id, username]
     );
 
-    await pool.query(
-      `INSERT INTO room_expenses (room_id, username, description, amount, people, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      [room_id, username, 'joined the room', 0, 1]
-    );
+    if (alreadyJoined.rowCount === 0) {
+      // Only insert if not already joined
+      await pool.query(
+        "INSERT INTO participants (room_id, username) VALUES ($1, $2)",
+        [room_id, username]
+      );
+
+      await pool.query(
+        `INSERT INTO room_expenses (room_id, username, description, amount, people, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [room_id, username, 'joined the room', 0, 1]
+      );
+    }
 
     res.json({ success: true, message: "Joined room successfully" });
   } catch (err) {
@@ -121,6 +129,7 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to join room" });
   }
 });
+
 
 // Add Room Expense
 app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
@@ -264,7 +273,11 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT description, amount, people, created_at FROM expenses WHERE username = $1 ORDER BY created_at DESC",
+      `SELECT e.description, e.amount, e.people, e.created_at, r.name AS room_name
+       FROM expenses e
+       LEFT JOIN rooms r ON e.room_id = r.id
+       WHERE e.username = $1
+       ORDER BY e.created_at DESC`,
       [username]
     );
 
