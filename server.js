@@ -99,29 +99,26 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
   const username = req.user.username;
 
   try {
-    // 🔍 Check if the room exists
     const exists = await pool.query("SELECT * FROM rooms WHERE id = $1", [room_id]);
     if (exists.rowCount === 0)
       return res.status(404).json({ success: false, message: "Room not found" });
 
-    // ✅ Check if already a participant
     const alreadyJoined = await pool.query(
       "SELECT 1 FROM room_participants WHERE room_id = $1 AND username = $2",
       [room_id, username]
     );
 
     if (alreadyJoined.rowCount === 0) {
-      // 👥 Insert into room_participants table
       await pool.query(
         "INSERT INTO room_participants (room_id, username) VALUES ($1, $2)",
         [room_id, username]
       );
 
-      // ✏️ Add zero-amount expense to log the join
+      // Optional log entry (safe to remove)
       await pool.query(
         `INSERT INTO room_expenses (room_id, username, description, amount, people, created_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())`,
-        [room_id, username, 'joined the room', 0, 1]
+         VALUES ($1, $2, $3, 0, 1, NOW())`,
+        [room_id, username, 'joined the room']
       );
     }
 
@@ -131,6 +128,7 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to join room" });
   }
 });
+
 
 
 
@@ -152,7 +150,8 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
     if (username.trim().toLowerCase() !== roomCreator.trim().toLowerCase())
       return res.status(403).json({ message: "Only room creator can add expenses" });
 
-    const countRes = await pool.query("SELECT COUNT(*) FROM participants WHERE room_id = $1", [roomId]);
+    const countRes = await pool.query("SELECT COUNT(*) FROM room_participants WHERE room_id = $1", [roomId]);
+
     const people = parseInt(countRes.rows[0].count);
 
     await pool.query(
@@ -193,7 +192,7 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
 
   try {
     const result = await pool.query(
-      "SELECT username FROM participants WHERE room_id = $1",
+      "SELECT username FROM room_participants WHERE room_id = $1",
       [roomId]
     );
 
@@ -204,15 +203,17 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
   }
 });
 
+
 // ✅ Get Room Details (with creator)
 app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
   const { roomId } = req.params;
 
   try {
     const participantsRes = await pool.query(
-      "SELECT DISTINCT username FROM participants WHERE room_id = $1",
+      "SELECT DISTINCT username FROM room_participants WHERE room_id = $1",
       [roomId]
     );
+    
 
     const creatorRes = await pool.query(
       "SELECT created_by FROM rooms WHERE id = $1",
@@ -245,7 +246,7 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
   try {
     // ✅ Verify the user is part of the room
     const isParticipant = await pool.query(
-      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
+      "SELECT 1 FROM room_participants WHERE room_id = $1 AND username = $2",
       [roomId, username]
     );
 
