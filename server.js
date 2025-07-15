@@ -274,7 +274,7 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT e.description, e.amount, e.people, e.created_at, r.name AS room_name
-       FROM expenses e
+       FROM room_expenses e
        LEFT JOIN rooms r ON e.room_id = r.id
        WHERE e.username = $1
        ORDER BY e.created_at DESC`,
