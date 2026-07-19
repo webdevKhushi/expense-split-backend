@@ -133,13 +133,13 @@ app.post("/api/join-room", authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: "Room not found" });
 
     const alreadyJoined = await pool.query(
-      "SELECT 1 FROM room_participants WHERE room_id = $1 AND username = $2",
+      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
       [room_id, username]
     );
 
     if (alreadyJoined.rowCount === 0) {
       await pool.query(
-        "INSERT INTO room_participants (room_id, username) VALUES ($1, $2)",
+        "INSERT INTO participants (room_id, username) VALUES ($1, $2)",
         [room_id, username]
       );
 
@@ -179,7 +179,7 @@ app.post("/api/room/:roomId/expense", authenticateToken, async (req, res) => {
     if (username.trim().toLowerCase() !== roomCreator.trim().toLowerCase())
       return res.status(403).json({ message: "Only room creator can add expenses" });
 
-    const countRes = await pool.query("SELECT COUNT(*) FROM room_participants WHERE room_id = $1", [roomId]);
+    const countRes = await pool.query("SELECT COUNT(*) FROM participants WHERE room_id = $1", [roomId]);
 
     const people = parseInt(countRes.rows[0].count);
 
@@ -221,7 +221,7 @@ app.get("/api/room/:roomId/participants", authenticateToken, async (req, res) =>
 
   try {
     const result = await pool.query(
-      "SELECT username FROM room_participants WHERE room_id = $1",
+      "SELECT username FROM participants WHERE room_id = $1",
       [roomId]
     );
 
@@ -239,7 +239,7 @@ app.get("/api/room/:roomId/details", authenticateToken, async (req, res) => {
 
   try {
     const participantsRes = await pool.query(
-      "SELECT DISTINCT username FROM room_participants WHERE room_id = $1",
+      "SELECT DISTINCT username FROM participants WHERE room_id = $1",
       [roomId]
     );
     
@@ -275,7 +275,7 @@ app.get("/api/room/:roomId/history", authenticateToken, async (req, res) => {
   try {
     // ✅ Verify the user is part of the room
     const isParticipant = await pool.query(
-      "SELECT 1 FROM room_participants WHERE room_id = $1 AND username = $2",
+      "SELECT 1 FROM participants WHERE room_id = $1 AND username = $2",
       [roomId, username]
     );
 
@@ -307,7 +307,7 @@ app.get("/api/expense/personal", authenticateToken, async (req, res) => {
   try {
     // Step 1: Get all room IDs where user is a participant
     const roomIdsResult = await pool.query(
-      `SELECT room_id FROM room_participants WHERE username = $1`,
+      `SELECT room_id FROM participants WHERE username = $1`,
       [username]
     );
     const roomIds = roomIdsResult.rows.map(row => row.room_id);
