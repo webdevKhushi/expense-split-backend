@@ -70,9 +70,15 @@ app.post("/api/signup", async (req, res) => {
     );
 
     res.json({ success: true, message: "Signup successful. You can now log in." });
-  } catch (err) {
-    console.error("Signup Error:", err.message);
-    res.status(500).json({ success: false, message: "Signup failed" });
+  }catch (err) {
+    console.error("========== SIGNUP ERROR ==========");
+    console.error(err);
+    console.error(err.stack);
+  
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 
