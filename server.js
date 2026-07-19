@@ -15,16 +15,6 @@ const JWT_SECRET = "my_super_secret_key_47293";
 app.use(cors());
 app.use(express.json());
 
-// ✅ PostgreSQL Connection
-// const pool = new Pool({
-//   connectionString: process.env.DATABASE_URL || "postgresql://postgres:1234@localhost:5433/expensesplit",
-//   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-// });
-
-// ✅ Corrected PostgreSQL Connection
-// ✅ Hardcoded configuration bypass to guarantee connection
-
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
