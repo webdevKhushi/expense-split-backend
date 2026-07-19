@@ -24,7 +24,7 @@ app.use(express.json());
 // ✅ Corrected PostgreSQL Connection
 // ✅ Hardcoded configuration bypass to guarantee connection
 const pool = new Pool({
-  connectionString: "postgresql://postgres.keoirrftcjuetvkawaql:fuvkyr-fIxmyh-6wavmo@://supabase.com",
+  connectionString: "postgresql://postgres:fuvkyr-fIxmyh-6wavmo@db.keoirrftcjuetvkawaql.supabase.co:5432/postgres",
   ssl: { rejectUnauthorized: false },
 });
 
