@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS rooms (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  created_by VARCHAR(255) NOT NULL
+  created_by VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Room Members table
@@ -32,12 +33,13 @@ CREATE TABLE IF NOT EXISTS room_expenses (
 );
 
 -- Participants table
-CREATE TABLE IF NOT EXISTS participants (
-  id SERIAL PRIMARY KEY,
-  room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
-  username VARCHAR(255) NOT NULL,
-  UNIQUE (room_id, username)
+CREATE TABLE IF NOT EXISTS participants(
+    id SERIAL PRIMARY KEY,
+    room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
+    username VARCHAR(255) NOT NULL,
+    joined_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- Invites table
 CREATE TABLE IF NOT EXISTS invites (
