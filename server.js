@@ -16,11 +16,10 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  connectionString: "postgresql://postgres.keoirrftcjuetvkawaql:fuvkyr-fIxmyh-6wavmo@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres",
+  ssl: { rejectUnauthorized: false },
 });
+
 
 
 // ✅ Auth Middleware
