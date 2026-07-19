@@ -22,9 +22,10 @@ app.use(express.json());
 // });
 
 // ✅ Corrected PostgreSQL Connection
+// ✅ Hardcoded configuration bypass to guarantee connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // 🔐 Keeps the connection secure and active
+  connectionString: "postgresql://postgres.keoirrftcjuetvkawaql:fuvkyr-fIxmyh-6wavmo@://supabase.com",
+  ssl: { rejectUnauthorized: false },
 });
 
 
