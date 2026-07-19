@@ -26,21 +26,11 @@ app.use(express.json());
 
 
 const pool = new Pool({
-  connectionString: "postgresql://postgres:fuvkyr-fIxmyh-6wavmo@db.keoirrftcjuetvkawaql.supabase.co:5432/postgres",
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
 });
-
-(async () => {
-  try {
-    const client = await pool.connect();
-    console.log("✅ Database connected successfully");
-    client.release();
-  } catch (err) {
-    console.error("❌ Database connection failed:", err);
-  }
-})();
 
 
 // ✅ Auth Middleware
