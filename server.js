@@ -9,7 +9,7 @@ import jwt from "jsonwebtoken";
 const { Pool } = pkg;
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = "my_super_secret_key_47293";
 
 // ✅ Middleware
 app.use(cors());
